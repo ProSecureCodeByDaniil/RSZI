@@ -12,10 +12,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
+# ВАЖНО! Укажите тут путь к директории OpenSSL на Вашем компьютере
+set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
+find_package(OpenSSL REQUIRED)
+
 add_executable(Lab_1
   main.cpp
 )
-target_link_libraries(Lab_1 Qt${QT_VERSION_MAJOR}::Core)
+
+target_link_libraries(Lab_1
+    Qt${QT_VERSION_MAJOR}::Core
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
 
 include(GNUInstallDirs)
 install(TARGETS Lab_1
