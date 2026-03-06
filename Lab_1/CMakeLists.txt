@@ -16,8 +16,21 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 find_package(OpenSSL REQUIRED)
 
+set(SOURCES
+    main.cpp
+    CryptoManager.cpp
+    FileUtils.cpp
+)
+
+set(HEADERS
+    CryptoManager.h
+    FileUtils.h
+    FileInfo.h
+)
+
 add_executable(Lab_1
-  main.cpp
+    ${SOURCES}
+    ${HEADERS}
 )
 
 target_link_libraries(Lab_1
