@@ -3,12 +3,16 @@
 
 #include <QString>
 
+/**
+ * @struct FileInfo
+ * @brief Структура для хранения информации о файле при обходе директорий
+ */
 struct FileInfo {
-    QString path;
-    QString relativePath;
-    QString hash;
-    qint64 size;
-    bool isEncrypted;
+    QString path;            ///< Полный абсолютный путь к файлу
+    QString relativePath;    ///< Относительный путь от базовой директории
+    QString hash;            ///< SHA-256 хэш файла (может быть пустым)
+    qint64 size;             ///< Размер файла в байтах
+    bool isEncrypted;        ///< Флаг: true если файл зашифрован (содержит маркер)
 };
 
 #endif // FILEINFO_H

@@ -7,6 +7,13 @@
 #include <QCryptographicHash>
 #include <iostream>
 
+/**
+ * @brief Рекурсивный сбор информации о файлах
+ * @param path Текущая директория
+ * @param basePath Базовая директория (для относительных путей)
+ * @param files Список для заполнения
+ * @param depth Текущая глубина (для форматирования вывода)
+ */
 void collectFilesInfo(const QString &path,
                       const QString &basePath,
                       QList<FileInfo> &files,
@@ -20,14 +27,16 @@ void collectFilesInfo(const QString &path,
         return;
     }
 
+    // Получаем список всех элементов (папки и файлы, исключая . и ..)
     QFileInfoList entries =
         dir.entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot);
 
-    std::string indent(depth * 2, ' ');
+    std::string indent(depth * 2, ' ');  // Отступ для визуализации дерева
 
     for (const QFileInfo &entry : entries) {
 
         if (entry.isDir()) {
+            // Обработка папки - рекурсивный вызов
             std::cout << indent << "[ПАПКА] "
                       << entry.fileName().toStdString() << std::endl;
 
@@ -37,7 +46,7 @@ void collectFilesInfo(const QString &path,
                              depth + 1);
         }
         else if (entry.isFile()) {
-
+            // Обработка файла - сохранение информации
             QString relativePath =
                 QDir(basePath).relativeFilePath(entry.absoluteFilePath());
 
@@ -50,7 +59,7 @@ void collectFilesInfo(const QString &path,
             fileInfo.path = entry.absoluteFilePath();
             fileInfo.relativePath = relativePath;
             fileInfo.size = entry.size();
-            fileInfo.hash = QString();
+            fileInfo.hash = QString();  // Хэш будет вычислен позже
             fileInfo.isEncrypted =
                 CryptoManager::isFileEncrypted(entry.absoluteFilePath());
 
@@ -63,29 +72,37 @@ void collectFilesInfo(const QString &path,
     }
 }
 
+/**
+ * @brief Поиск папки вверх по иерархии и в поддиректориях
+ * @param folderName Имя папки
+ * @param startPath Начальная точка поиска
+ * @return Путь к папке или пустая строка
+ */
 QString findFolder(const QString &folderName,
                    const QString &startPath)
 {
     QDir currentDir(startPath);
-    const int maxDepth = 5;
+    const int maxDepth = 5;  // Максимальная глубина подъёма вверх
     int depth = 0;
 
     std::cout << "Поиск папки "
               << folderName.toStdString()
               << "..." << std::endl;
 
+    // Поиск вверх по иерархии
     while (!currentDir.exists(folderName) && depth < maxDepth) {
 
         std::cout << "  Проверяем: "
                   << currentDir.absolutePath().toStdString()
                   << std::endl;
 
-        if (!currentDir.cdUp())
+        if (!currentDir.cdUp())  // Поднимаемся на уровень выше
             break;
 
         depth++;
     }
 
+    // Если нашли подъёмом вверх
     if (currentDir.exists(folderName)) {
         QString foundPath =
             currentDir.absoluteFilePath(folderName);
@@ -97,6 +114,7 @@ QString findFolder(const QString &folderName,
         return foundPath;
     }
 
+    // Поиск в текущей директории
     QDir startDir(startPath);
     QFileInfoList dirs =
         startDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
@@ -106,6 +124,7 @@ QString findFolder(const QString &folderName,
             return dir.absoluteFilePath();
     }
 
+    // Поиск во вложенных папках (одна глубина)
     for (const QFileInfo &dir : dirs) {
         QDir subDir(dir.absoluteFilePath());
         QFileInfoList subDirs =
@@ -121,6 +140,11 @@ QString findFolder(const QString &folderName,
     return QString();
 }
 
+/**
+ * @brief Вычисление SHA-256 хэша файла
+ * @param filePath Путь к файлу
+ * @return Хэш в hex или пустая строка
+ */
 QString calculateSHA256(const QString &filePath)
 {
     QFile file(filePath);
@@ -133,12 +157,13 @@ QString calculateSHA256(const QString &filePath)
 
     QCryptographicHash hash(QCryptographicHash::Sha256);
 
-    const qint64 bufferSize = 8192;
+    const qint64 bufferSize = 8192;  // 8 КБ буфер для чтения
     QByteArray buffer;
     buffer.resize(static_cast<int>(bufferSize));
 
     qint64 bytesRead;
 
+    // Читаем файл блоками и обновляем хэш
     while ((bytesRead =
             file.read(buffer.data(), bufferSize)) > 0) {
         hash.addData(buffer.data(), bytesRead);
@@ -149,9 +174,14 @@ QString calculateSHA256(const QString &filePath)
     if (file.error() != QFile::NoError)
         return QString();
 
-    return QString(hash.result().toHex());
+    return QString(hash.result().toHex());  // Конвертируем в hex-строку
 }
 
+/**
+ * @brief Вывод хэшей всех файлов из списка
+ * @param files Список файлов
+ * @param stage Название этапа (для заголовка)
+ */
 void calculateAndPrintHashes(const QList<FileInfo> &files,
                              const QString &stage)
 {
