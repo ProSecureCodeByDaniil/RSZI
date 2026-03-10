@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.14)
 
 project(Lab_1 LANGUAGES CXX)
 
@@ -13,7 +13,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 # ВАЖНО! Укажите тут путь к директории OpenSSL на Вашем компьютере
-set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
+set(OPENSSL_ROOT_DIR "C:/Qt/Tools/mingw810_64/opt")
 find_package(OpenSSL REQUIRED)
 
 set(SOURCES

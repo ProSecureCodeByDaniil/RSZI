@@ -73,7 +73,8 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
     QByteArray passwordBytes = password.toUtf8();
 
     // ===== Генерация ключа через SHA-256 =====
-    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    // Используем EVP_MD_CTX_create вместо EVP_MD_CTX_new для совместимости
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_create();
     if (!mdctx)
         return false;
 
@@ -85,14 +86,14 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
                          passwordBytes.size()) != 1 ||
         EVP_DigestFinal_ex(mdctx, key, nullptr) != 1)
     {
-        EVP_MD_CTX_free(mdctx);
+        EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
         return false;
     }
 
-    EVP_MD_CTX_free(mdctx);
+    EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
 
     // ===== Генерация IV через SHA-1 =====
-    mdctx = EVP_MD_CTX_new();
+    mdctx = EVP_MD_CTX_create();  // Используем _create вместо _new
     if (!mdctx)
         return false;
 
@@ -105,11 +106,11 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
                          passwordBytes.size()) != 1 ||
         EVP_DigestFinal_ex(mdctx, hash, nullptr) != 1)
     {
-        EVP_MD_CTX_free(mdctx);
+        EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
         return false;
     }
 
-    EVP_MD_CTX_free(mdctx);
+    EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
 
     memcpy(iv, hash, 16);  // Берём первые 16 байт SHA-1 для IV
     keyInitialized = true;
