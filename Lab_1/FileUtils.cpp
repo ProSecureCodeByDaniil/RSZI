@@ -72,12 +72,7 @@ void collectFilesInfo(const QString &path,
     }
 }
 
-/**
- * @brief Поиск папки вверх по иерархии и в поддиректориях
- * @param folderName Имя папки
- * @param startPath Начальная точка поиска
- * @return Путь к папке или пустая строка
- */
+/* // Закомментировано: функция поиска папки больше не используется
 QString findFolder(const QString &folderName,
                    const QString &startPath)
 {
@@ -139,6 +134,7 @@ QString findFolder(const QString &folderName,
     std::cout << "Папка не найдена" << std::endl;
     return QString();
 }
+*/
 
 /**
  * @brief Вычисление SHA-256 хэша файла

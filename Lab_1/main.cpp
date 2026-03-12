@@ -15,8 +15,8 @@
  *
  * Этапы работы:
  * 1. Установка UTF-8 кодировки для консоли Windows
- * 2. Запрос имени папки, пароля и режима работы
- * 3. Поиск папки
+ * 2. Запрос пути к папке, пароля и режима работы
+ * 3. Проверка существования папки
  * 4. Инициализация CryptoManager паролем
  * 5. Сбор информации о файлах
  * 6. В зависимости от режима:
@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
+    /* // Закомментировано: старый код с поиском папки
     // Получаем путь к директории, где находится исполняемый файл
     QString currentPath =
         QFileInfo(QCoreApplication::applicationFilePath()).absolutePath();
@@ -42,6 +43,12 @@ int main(int argc, char *argv[])
     std::string folderName;
     std::cout << "Введите название папки для поиска: ";
     std::getline(std::cin, folderName);
+    */
+
+    // Ввод пути к папке для обработки
+    std::string folderPathInput;
+    std::cout << "Введите полный путь к папке для обработки: ";
+    std::getline(std::cin, folderPathInput);
 
     // Ввод пароля (будет использован для генерации ключа)
     std::string password;
@@ -53,14 +60,22 @@ int main(int argc, char *argv[])
     std::cout << "Выберите режим (1 - шифрование, 2 - дешифрование): ";
     std::getline(std::cin, mode);
 
+    /* // Закомментировано: старый код с поиском папки
     // Поиск указанной папки
     QString folderPath =
         findFolder(QString::fromStdString(folderName), currentPath);
+    */
 
-    if (folderPath.isEmpty()) {
-        std::cout << "Папка не найдена." << std::endl;
+    // Проверка существования указанной папки
+    QString folderPath = QString::fromStdString(folderPathInput);
+    QFileInfo folderInfo(folderPath);
+
+    if (!folderInfo.exists() || !folderInfo.isDir()) {
+        std::cout << "Указанная папка не существует или не является директорией." << std::endl;
         return 0;
     }
+
+    std::cout << "Папка найдена: " << folderPath.toStdString() << std::endl;
 
     // Инициализация крипто-менеджера паролем
     CryptoManager* crypto = CryptoManager::getInstance();
