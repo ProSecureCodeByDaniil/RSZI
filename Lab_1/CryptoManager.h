@@ -75,6 +75,20 @@ public:
     static bool isFileEncrypted(const QString& filePath);
 
     /**
+     * @brief Проверка, можно ли изменять файл (не защищен ли он системой)
+     * @param filePath Путь к файлу
+     * @return true если файл можно изменять
+     */
+    static bool isFileWritable(const QString& filePath);
+
+    /**
+     * @brief Проверка, является ли файл системным или защищенным
+     * @param filePath Путь к файлу
+     * @return true если файл защищен и не должен обрабатываться
+     */
+    static bool isProtectedSystemFile(const QString& filePath);
+
+    /**
      * @brief Инициализация крипто-менеджера паролем
      * @param password Пароль для генерации ключей
      * @return true при успешной инициализации

@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
     int successCount = 0;
     int skippedCount = 0;
     int errorCount = 0;
+    int protectedCount = 0;  // Добавляем счетчик для системных/защищенных файлов
     QString operation;
 
     // Выполнение операции в зависимости от режима
@@ -141,6 +142,17 @@ int main(int argc, char *argv[])
 
         for (auto &file : files) {
             QString outputPath;
+
+            // Проверяем, является ли файл системным/защищенным ДО операции
+            if (CryptoManager::isProtectedSystemFile(file.path)) {
+                // Системный/защищенный файл - увеличиваем счетчик пропущенных
+                protectedCount++;
+                skippedCount++;  // Увеличиваем общий счетчик пропущенных
+
+                // Все равно вызываем encryptFile для логирования
+                crypto->encryptFile(file.path, outputPath);
+                continue;
+            }
 
             // Проверяем статус ДО операции
             bool wasEncrypted = CryptoManager::isFileEncrypted(file.path);
@@ -173,6 +185,17 @@ int main(int argc, char *argv[])
         // Режим дешифрования
         for (auto &file : files) {
             QString outputPath;
+
+            // Проверяем, является ли файл системным/защищенным ДО операции
+            if (CryptoManager::isProtectedSystemFile(file.path)) {
+                // Системный/защищенный файл - увеличиваем счетчик пропущенных
+                protectedCount++;
+                skippedCount++;  // Увеличиваем общий счетчик пропущенных
+
+                // Все равно вызываем decryptFile для логирования
+                crypto->decryptFile(file.path, outputPath);
+                continue;
+            }
 
             // Проверяем статус ДО операции
             bool wasEncrypted = CryptoManager::isFileEncrypted(file.path);
@@ -209,16 +232,23 @@ int main(int argc, char *argv[])
         errorCount++;
     }
 
-    // Вывод статистики в консоль
+    // Вывод статистики в консоль с детализацией
     std::cout << "Статистика: обработано " << (successCount + skippedCount + errorCount)
               << " файлов (успешно: " << successCount
               << ", пропущено: " << skippedCount
+              << " [из них системных/защищенных: " << protectedCount << "]"
               << ", ошибок: " << errorCount << ")" << std::endl;
 
     // Записываем итоговую статистику в информационный лог (только если была выбрана корректная операция)
     if (logger && (mode == "1" || mode == "2")) {
-        QString summary = QString("Итого по операции %1: Успешно: %2, Пропущено: %3, Ошибок: %4")
-                              .arg(operation).arg(successCount).arg(skippedCount).arg(errorCount);
+        QString summary;
+        if (protectedCount > 0) {
+            summary = QString("Итого по операции %1: Успешно: %2, Пропущено: %3 (системных/защищенных: %4), Ошибок: %5")
+                          .arg(operation).arg(successCount).arg(skippedCount).arg(protectedCount).arg(errorCount);
+        } else {
+            summary = QString("Итого по операции %1: Успешно: %2, Пропущено: %3, Ошибок: %4")
+                          .arg(operation).arg(successCount).arg(skippedCount).arg(errorCount);
+        }
         logger->logInfo(summary);
 
         // Уведомляем об обновлении лог-файлов

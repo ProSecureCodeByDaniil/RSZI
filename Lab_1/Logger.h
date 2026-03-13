@@ -8,6 +8,16 @@
 #include <QDateTime>
 
 /**
+ * @enum LogOperation
+ * @brief Тип операции для логирования
+ */
+enum class LogOperation {
+    Encrypt,    ///< Операция шифрования
+    Decrypt,    ///< Операция дешифрования
+    Unknown     ///< Неизвестная операция (для обратной совместимости)
+};
+
+/**
  * @class Logger
  * @brief Класс для логирования операций шифрования/дешифрования в файлы
  *
@@ -94,8 +104,9 @@ public:
      * @brief Запись информации о пропущенном файле (уже зашифрован/дешифрован)
      * @param message Информационное сообщение
      * @param fileName Имя файла
+     * @param operation Тип операции (шифрование/дешифрование)
      */
-    void logSkipped(const QString& message, const QString& fileName);
+    void logSkipped(const QString& message, const QString& fileName, LogOperation operation = LogOperation::Unknown);
 
     /**
      * @brief Сообщение о том, что лог-файлы обновлены (выводится в консоль один раз)

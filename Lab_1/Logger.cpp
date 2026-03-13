@@ -162,13 +162,24 @@ void Logger::logInfo(const QString& message)
  * @brief Запись информации о пропущенном файле (уже зашифрован/дешифрован)
  * @param message Информационное сообщение
  * @param fileName Имя файла
+ * @param operation Тип операции (шифрование/дешифрование)
  */
-void Logger::logSkipped(const QString& message, const QString& fileName)
+void Logger::logSkipped(const QString& message, const QString& fileName, LogOperation operation)
 {
     QMutexLocker locker(&mutex);
     QString formattedMessage = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") +
                                " - [ПРОПУЩЕН] " + message + " (файл: " + fileName + ")";
 
+    // Если операция явно указана, используем её
+    if (operation == LogOperation::Encrypt) {
+        writeToFile(encryptLogFile, formattedMessage);
+        return;
+    } else if (operation == LogOperation::Decrypt) {
+        writeToFile(decryptLogFile, formattedMessage);
+        return;
+    }
+
+    // Иначе определяем по содержимому сообщения (для обратной совместимости)
     // Сначала проверяем специфичные фразы для дешифрования
     if (message.contains("не зашифрован", Qt::CaseInsensitive)) {
         // Для сообщений о дешифровании (файл не зашифрован)
@@ -176,8 +187,13 @@ void Logger::logSkipped(const QString& message, const QString& fileName)
     } else if (message.contains("расшифрован", Qt::CaseInsensitive)) {
         // Для сообщений о дешифровании (уже расшифрован)
         writeToFile(decryptLogFile, formattedMessage);
-    } else if (message.contains("зашифрован", Qt::CaseInsensitive)) {
+    } else if (message.contains("зашифрован", Qt::CaseInsensitive) &&
+               !message.contains("расшифрован", Qt::CaseInsensitive)) {
         // Для сообщений о шифровании (уже зашифрован)
+        writeToFile(encryptLogFile, formattedMessage);
+    } else if (message.contains("системным или защищенным", Qt::CaseInsensitive)) {
+        // Для сообщений о системных/защищенных файлах - по умолчанию в encrypt
+        // Но лучше всегда передавать operation при вызове
         writeToFile(encryptLogFile, formattedMessage);
     }
     // Больше не записываем в info лог

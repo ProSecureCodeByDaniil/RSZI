@@ -10,6 +10,11 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
+// Добавляем Windows заголовки для работы с атрибутами файлов
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 // Константа маркера зашифрованного файла (8 байт: 0xEF,0xBE,0xAD,0xDE,0x01,0x02,0x03,0x04)
 const unsigned char ENCRYPTED_MARKER[] =
     {0xEF, 0xBE, 0xAD, 0xDE, 0x01, 0x02, 0x03, 0x04};
@@ -174,6 +179,74 @@ bool CryptoManager::isFileEncrypted(const QString& filePath)
 }
 
 /**
+ * @brief Проверка, можно ли изменять файл (не защищен ли он системой)
+ * @param filePath Путь к файлу
+ * @return true если файл можно изменять
+ */
+bool CryptoManager::isFileWritable(const QString& filePath)
+{
+    QFileInfo fileInfo(filePath);
+
+    // Проверяем атрибуты файла
+    if (fileInfo.isReadable() && fileInfo.isWritable()) {
+        // Дополнительная проверка: пытаемся открыть для записи в режиме ReadWrite
+        QFile file(filePath);
+        if (file.open(QIODevice::ReadWrite)) {
+            file.close();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @brief Проверка, является ли файл системным или защищенным
+ * @param filePath Путь к файлу
+ * @return true если файл защищен и не должен обрабатываться
+ */
+bool CryptoManager::isProtectedSystemFile(const QString& filePath)
+{
+    QFileInfo fileInfo(filePath);
+    QString fileName = fileInfo.fileName();
+
+    // Список системных файлов, которые нельзя обрабатывать
+    static const QStringList protectedFiles = {
+        // "ProSecureCodeByDaniil.ini" // можно добавлять например отдельные файлы
+        ".gitattributes",
+        ".gitignore"
+    };
+
+    // Проверяем по имени
+    for (const QString& protectedName : protectedFiles) {
+        if (fileName.compare(protectedName, Qt::CaseInsensitive) == 0) {
+            return true;
+        }
+    }
+
+    // Проверяем атрибуты Windows
+    if (fileInfo.isHidden() || fileInfo.isSymLink() || fileInfo.isShortcut()) {
+        // Для скрытых файлов проверяем дополнительно
+        DWORD attributes = GetFileAttributesW(filePath.toStdWString().c_str());
+        if (attributes != INVALID_FILE_ATTRIBUTES) {
+            if (attributes & FILE_ATTRIBUTE_SYSTEM ||
+                attributes & FILE_ATTRIBUTE_DEVICE ||
+                attributes & FILE_ATTRIBUTE_TEMPORARY) {
+                return true;
+            }
+        }
+    }
+
+    // Проверяем права доступа
+    if (!isFileWritable(filePath)) {
+        // Если файл не доступен для записи, считаем его защищенным
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * @brief Инициализация паролем (публичный интерфейс для deriveKeyFromPassword)
  */
 bool CryptoManager::initialize(const QString& password)
@@ -189,10 +262,11 @@ bool CryptoManager::initialize(const QString& password)
  *
  * Алгоритм:
  * 1. Проверка инициализации
- * 2. Проверка, не зашифрован ли уже файл
- * 3. Запись маркера в начало временного файла
- * 4. Шифрование данных AES-256-CBC
- * 5. Замена исходного файла временным
+ * 2. Проверка, не защищен ли файл системой
+ * 3. Проверка, не зашифрован ли уже файл
+ * 4. Запись маркера в начало временного файла
+ * 5. Шифрование данных AES-256-CBC
+ * 6. Замена исходного файла временным
  */
 bool CryptoManager::encryptFile(const QString& inputPath,
                                 QString& outputPath)
@@ -211,6 +285,21 @@ bool CryptoManager::encryptFile(const QString& inputPath,
         return false;
     }
 
+    // ========== ПРОВЕРКА: Является ли файл системным/защищенным? ==========
+    if (isProtectedSystemFile(inputPath))
+    {
+        // std::cout << "Файл защищен системой и не может быть изменен: " // Закомментировано
+        //           << fileName.toStdString() << std::endl;
+
+        // Записываем в соответствующий лог (encrypt лог) с указанием операции
+        if (logger) {
+            logger->logSkipped("Файл является системным или защищенным", fileName, LogOperation::Encrypt);
+        }
+        outputPath = inputPath;
+        return true; // Возвращаем true, так как файл не должен обрабатываться
+    }
+    // ==========================================================================
+
     // Если файл уже зашифрован, ничего не делаем
     if (isFileEncryptedInternal(inputPath))
     {
@@ -219,7 +308,7 @@ bool CryptoManager::encryptFile(const QString& inputPath,
         //           << std::endl;
 
         if (logger) {
-            logger->logSkipped("Файл уже зашифрован", fileName);
+            logger->logSkipped("Файл уже зашифрован", fileName, LogOperation::Encrypt);
         }
         outputPath = inputPath;
         return true; // Возвращаем true, так как файл уже в нужном состоянии
@@ -388,9 +477,10 @@ bool CryptoManager::encryptFile(const QString& inputPath,
  *
  * Алгоритм:
  * 1. Проверка инициализации
- * 2. Пропуск маркера (8 байт)
- * 3. Дешифрование данных AES-256-CBC
- * 4. Замена исходного файла временным
+ * 2. Проверка, не защищен ли файл системой
+ * 3. Пропуск маркера (8 байт)
+ * 4. Дешифрование данных AES-256-CBC
+ * 5. Замена исходного файла временным
  */
 bool CryptoManager::decryptFile(const QString& inputPath,
                                 QString& outputPath)
@@ -406,11 +496,26 @@ bool CryptoManager::decryptFile(const QString& inputPath,
         return false;
     }
 
+    // ========== ПРОВЕРКА: Является ли файл системным/защищенным? ==========
+    if (isProtectedSystemFile(inputPath))
+    {
+        // std::cout << "Файл защищен системой и не может быть изменен: " // Закомментировано
+        //           << fileName.toStdString() << std::endl;
+
+        // Записываем в соответствующий лог (decrypt лог) с указанием операции
+        if (logger) {
+            logger->logSkipped("Файл является системным или защищенным", fileName, LogOperation::Decrypt);
+        }
+        outputPath = inputPath;
+        return true; // Возвращаем true, так как файл не должен обрабатываться
+    }
+    // ==========================================================================
+
     // Если файл не зашифрован, ничего не делаем
     if (!isFileEncryptedInternal(inputPath))
     {
         if (logger) {
-            logger->logSkipped("Файл не зашифрован", fileName);
+            logger->logSkipped("Файл не зашифрован", fileName, LogOperation::Decrypt);
         }
         outputPath = inputPath;
         return true; // Возвращаем true, так как файл уже в нужном состоянии
