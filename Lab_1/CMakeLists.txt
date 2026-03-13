@@ -20,12 +20,14 @@ set(SOURCES
     main.cpp
     CryptoManager.cpp
     FileUtils.cpp
+    Logger.cpp
 )
 
 set(HEADERS
     CryptoManager.h
     FileUtils.h
     FileInfo.h
+    Logger.h
 )
 
 add_executable(Lab_1

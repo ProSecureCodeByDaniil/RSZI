@@ -1,8 +1,9 @@
 #include "CryptoManager.h"
+#include "Logger.h"
 
 #include <QFile>
 #include <QFileInfo>
-#include <iostream>
+// #include <iostream> // Закомментировано: убираем лишний вывод
 #include <vector>
 #include <cstring>
 
@@ -66,14 +67,13 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
 {
     if (password.isEmpty())
     {
-        std::cout << "Ошибка: Пароль не может быть пустым" << std::endl;
+        // std::cout << "Ошибка: Пароль не может быть пустым" << std::endl; // Закомментировано: данный вывод больше не нужен
         return false;
     }
 
     QByteArray passwordBytes = password.toUtf8();
 
     // ===== Генерация ключа через SHA-256 =====
-    // Используем EVP_MD_CTX_create вместо EVP_MD_CTX_new для совместимости
     EVP_MD_CTX* mdctx = EVP_MD_CTX_create();
     if (!mdctx)
         return false;
@@ -86,14 +86,14 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
                          passwordBytes.size()) != 1 ||
         EVP_DigestFinal_ex(mdctx, key, nullptr) != 1)
     {
-        EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
+        EVP_MD_CTX_destroy(mdctx);
         return false;
     }
 
-    EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
+    EVP_MD_CTX_destroy(mdctx);
 
     // ===== Генерация IV через SHA-1 =====
-    mdctx = EVP_MD_CTX_create();  // Используем _create вместо _new
+    mdctx = EVP_MD_CTX_create();
     if (!mdctx)
         return false;
 
@@ -106,11 +106,11 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
                          passwordBytes.size()) != 1 ||
         EVP_DigestFinal_ex(mdctx, hash, nullptr) != 1)
     {
-        EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
+        EVP_MD_CTX_destroy(mdctx);
         return false;
     }
 
-    EVP_MD_CTX_destroy(mdctx);  // Используем _destroy вместо _free
+    EVP_MD_CTX_destroy(mdctx);
 
     memcpy(iv, hash, 16);  // Берём первые 16 байт SHA-1 для IV
     keyInitialized = true;
@@ -197,32 +197,51 @@ bool CryptoManager::initialize(const QString& password)
 bool CryptoManager::encryptFile(const QString& inputPath,
                                 QString& outputPath)
 {
+    Logger* logger = Logger::getInstance();
+    QString fileName = QFileInfo(inputPath).fileName();
+
     if (!keyInitialized)
     {
-        std::cout << "Ошибка: CryptoManager не инициализирован"
-                  << std::endl;
+        // std::cout << "Ошибка: CryptoManager не инициализирован" // Закомментировано: данный вывод больше не нужен
+        //           << std::endl;
+
+        if (logger) {
+            logger->logError("CryptoManager не инициализирован", fileName);
+        }
         return false;
     }
 
     // Если файл уже зашифрован, ничего не делаем
     if (isFileEncryptedInternal(inputPath))
     {
-        std::cout << "Файл уже зашифрован: "
-                  << QFileInfo(inputPath).fileName().toStdString()
-                  << std::endl;
+        // std::cout << "Файл уже зашифрован: "                       // Закомментировано: данный вывод больше не нужен
+        //           << QFileInfo(inputPath).fileName().toStdString()
+        //           << std::endl;
+
+        if (logger) {
+            logger->logSkipped("Файл уже зашифрован", fileName);
+        }
         outputPath = inputPath;
-        return true;
+        return true; // Возвращаем true, так как файл уже в нужном состоянии
     }
 
     QFile inFile(inputPath);
     if (!inFile.open(QIODevice::ReadOnly))
+    {
+        if (logger) {
+            logger->logError("Не удалось открыть файл для чтения", fileName);
+        }
         return false;
+    }
 
     QString tempPath = inputPath + ".tmp";  // Временный файл
     QFile outFile(tempPath);
 
     if (!outFile.open(QIODevice::WriteOnly))
     {
+        if (logger) {
+            logger->logError("Не удалось создать временный файл", fileName);
+        }
         inFile.close();
         return false;
     }
@@ -231,6 +250,9 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     if (outFile.write(reinterpret_cast<const char*>(ENCRYPTED_MARKER),
                       MARKER_SIZE) != MARKER_SIZE)
     {
+        if (logger) {
+            logger->logError("Не удалось записать маркер шифрования", fileName);
+        }
         inFile.close();
         outFile.close();
         QFile::remove(tempPath);
@@ -241,6 +263,9 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
+        if (logger) {
+            logger->logError("Не удалось создать контекст OpenSSL", fileName);
+        }
         inFile.close();
         outFile.close();
         QFile::remove(tempPath);
@@ -254,6 +279,9 @@ bool CryptoManager::encryptFile(const QString& inputPath,
                            key,
                            iv) != 1)
     {
+        if (logger) {
+            logger->logError("Ошибка инициализации шифрования", fileName);
+        }
         EVP_CIPHER_CTX_free(ctx);
         inFile.close();
         outFile.close();
@@ -280,6 +308,9 @@ bool CryptoManager::encryptFile(const QString& inputPath,
                               inBuffer.data(),
                               bytesRead) != 1)
         {
+            if (logger) {
+                logger->logError("Ошибка при шифровании данных", fileName);
+            }
             success = false;
             break;
         }
@@ -287,6 +318,9 @@ bool CryptoManager::encryptFile(const QString& inputPath,
         if (outFile.write(reinterpret_cast<char*>(outBuffer.data()),
                           outLen) != outLen)
         {
+            if (logger) {
+                logger->logError("Ошибка при записи зашифрованных данных", fileName);
+            }
             success = false;
             break;
         }
@@ -300,10 +334,22 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     {
         if (outFile.write(reinterpret_cast<char*>(outBuffer.data()),
                           outLen) != outLen)
+        {
+            if (logger) {
+                logger->logError("Ошибка при финализации шифрования", fileName);
+            }
             success = false;
+        }
     }
     else
+    {
+        if (success) {
+            if (logger) {
+                logger->logError("Ошибка при финализации шифрования (OpenSSL)", fileName);
+            }
+        }
         success = false;
+    }
 
     EVP_CIPHER_CTX_free(ctx);  // Освобождаем контекст
 
@@ -315,12 +361,20 @@ bool CryptoManager::encryptFile(const QString& inputPath,
         QFile::remove(inputPath);          // Удаляем исходный файл
         QFile::rename(tempPath, inputPath); // Переименовываем временный
         outputPath = inputPath;
-        std::cout << "Файл успешно зашифрован" << std::endl;
+        // std::cout << "Файл успешно зашифрован" << std::endl; // Закомментировано: данный вывод больше не нужен
+
+        // Логируем успешное шифрование файла
+        if (logger) {
+            logger->logEncrypt("Файл успешно зашифрован: " + fileName);
+        }
     }
     else
     {
         QFile::remove(tempPath);  // Ошибка - удаляем временный файл
-        std::cout << "Ошибка при шифровании" << std::endl;
+        // std::cout << "Ошибка при шифровании" << std::endl; // Закомментировано: данный вывод больше не нужен
+        if (logger) {
+            logger->logError("Ошибка при шифровании файла", fileName);
+        }
     }
 
     return success;
@@ -341,23 +395,42 @@ bool CryptoManager::encryptFile(const QString& inputPath,
 bool CryptoManager::decryptFile(const QString& inputPath,
                                 QString& outputPath)
 {
+    Logger* logger = Logger::getInstance();
+    QString fileName = QFileInfo(inputPath).fileName();
+
     if (!keyInitialized)
+    {
+        if (logger) {
+            logger->logError("CryptoManager не инициализирован", fileName);
+        }
         return false;
+    }
 
     // Если файл не зашифрован, ничего не делаем
     if (!isFileEncryptedInternal(inputPath))
     {
+        if (logger) {
+            logger->logSkipped("Файл не зашифрован", fileName);
+        }
         outputPath = inputPath;
-        return true;
+        return true; // Возвращаем true, так как файл уже в нужном состоянии
     }
 
     QFile inFile(inputPath);
     if (!inFile.open(QIODevice::ReadOnly))
+    {
+        if (logger) {
+            logger->logError("Не удалось открыть файл для чтения", fileName);
+        }
         return false;
+    }
 
     // Пропускаем маркер (он нам больше не нужен)
     if (!inFile.seek(MARKER_SIZE))
     {
+        if (logger) {
+            logger->logError("Не удалось пропустить маркер в файле", fileName);
+        }
         inFile.close();
         return false;
     }
@@ -367,6 +440,9 @@ bool CryptoManager::decryptFile(const QString& inputPath,
 
     if (!outFile.open(QIODevice::WriteOnly))
     {
+        if (logger) {
+            logger->logError("Не удалось создать временный файл", fileName);
+        }
         inFile.close();
         return false;
     }
@@ -375,6 +451,9 @@ bool CryptoManager::decryptFile(const QString& inputPath,
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
+        if (logger) {
+            logger->logError("Не удалось создать контекст OpenSSL", fileName);
+        }
         inFile.close();
         outFile.close();
         QFile::remove(tempPath);
@@ -388,6 +467,9 @@ bool CryptoManager::decryptFile(const QString& inputPath,
                            key,
                            iv) != 1)
     {
+        if (logger) {
+            logger->logError("Ошибка инициализации дешифрования", fileName);
+        }
         EVP_CIPHER_CTX_free(ctx);
         inFile.close();
         outFile.close();
@@ -414,6 +496,9 @@ bool CryptoManager::decryptFile(const QString& inputPath,
                               inBuffer.data(),
                               bytesRead) != 1)
         {
+            if (logger) {
+                logger->logError("Ошибка при дешифровании данных", fileName);
+            }
             success = false;
             break;
         }
@@ -421,6 +506,9 @@ bool CryptoManager::decryptFile(const QString& inputPath,
         if (outFile.write(reinterpret_cast<char*>(outBuffer.data()),
                           outLen) != outLen)
         {
+            if (logger) {
+                logger->logError("Ошибка при записи расшифрованных данных", fileName);
+            }
             success = false;
             break;
         }
@@ -434,10 +522,22 @@ bool CryptoManager::decryptFile(const QString& inputPath,
     {
         if (outFile.write(reinterpret_cast<char*>(outBuffer.data()),
                           outLen) != outLen)
+        {
+            if (logger) {
+                logger->logError("Ошибка при финализации дешифрования", fileName);
+            }
             success = false;
+        }
     }
     else
+    {
+        if (success) {
+            if (logger) {
+                logger->logError("Ошибка при финализации дешифрования (OpenSSL)", fileName);
+            }
+        }
         success = false;
+    }
 
     EVP_CIPHER_CTX_free(ctx);
 
@@ -449,12 +549,21 @@ bool CryptoManager::decryptFile(const QString& inputPath,
         QFile::remove(inputPath);           // Удаляем зашифрованный файл
         QFile::rename(tempPath, inputPath);  // Переименовываем временный
         outputPath = inputPath;
-        std::cout << "Файл успешно расшифрован" << std::endl;
+        // std::cout << "Файл успешно расшифрован" << std::endl; // Закомментировано: данный вывод больше не нужен
+
+        // Логируем успешное дешифрование файла
+        if (logger) {
+            logger->logDecrypt("Файл успешно расшифрован: " + fileName);
+        }
     }
     else
     {
         QFile::remove(tempPath);  // Ошибка - удаляем временный файл
-        std::cout << "Ошибка при дешифровании" << std::endl;
+        // std::cout << "Ошибка при дешифровании" << std::endl; // Закомментировано: данный вывод больше не нужен
+
+        if (logger) {
+            logger->logError("Ошибка при дешифровании файла", fileName);
+        }
     }
 
     return success;

@@ -5,7 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QCryptographicHash>
-#include <iostream>
+// #include <iostream> // Закомментировано: убираем лишний вывод
 
 /**
  * @brief Рекурсивный сбор информации о файлах
@@ -22,8 +22,8 @@ void collectFilesInfo(const QString &path,
     QDir dir(path);
 
     if (!dir.exists()) {
-        std::cout << "Директория не существует: "
-                  << path.toStdString() << std::endl;
+        // std::cout << "Директория не существует: " // Закомментировано
+        //           << path.toStdString() << std::endl;
         return;
     }
 
@@ -31,14 +31,14 @@ void collectFilesInfo(const QString &path,
     QFileInfoList entries =
         dir.entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot);
 
-    std::string indent(depth * 2, ' ');  // Отступ для визуализации дерева
+    // std::string indent(depth * 2, ' ');  // Отступ для визуализации дерева // Закомментировано
 
     for (const QFileInfo &entry : entries) {
 
         if (entry.isDir()) {
             // Обработка папки - рекурсивный вызов
-            std::cout << indent << "[ПАПКА] "
-                      << entry.fileName().toStdString() << std::endl;
+            // std::cout << indent << "[ПАПКА] " // Закомментировано
+            //           << entry.fileName().toStdString() << std::endl;
 
             collectFilesInfo(entry.absoluteFilePath(),
                              basePath,
@@ -50,10 +50,10 @@ void collectFilesInfo(const QString &path,
             QString relativePath =
                 QDir(basePath).relativeFilePath(entry.absoluteFilePath());
 
-            std::cout << indent << "[ФАЙЛ] "
-                      << entry.fileName().toStdString()
-                      << " (" << entry.size() << " байт)"
-                      << std::endl;
+            // std::cout << indent << "[ФАЙЛ] " // Закомментировано
+            //           << entry.fileName().toStdString()
+            //           << " (" << entry.size() << " байт)"
+            //           << std::endl;
 
             FileInfo fileInfo;
             fileInfo.path = entry.absoluteFilePath();
@@ -63,9 +63,11 @@ void collectFilesInfo(const QString &path,
             fileInfo.isEncrypted =
                 CryptoManager::isFileEncrypted(entry.absoluteFilePath());
 
+            /* // Закомментировано
             if (fileInfo.isEncrypted) {
                 std::cout << indent << "  [ЗАШИФРОВАН]" << std::endl;
             }
+            */
 
             files.append(fileInfo);
         }
@@ -146,8 +148,8 @@ QString calculateSHA256(const QString &filePath)
     QFile file(filePath);
 
     if (!file.open(QIODevice::ReadOnly)) {
-        std::cout << "Ошибка открытия файла: "
-                  << filePath.toStdString() << std::endl;
+        // std::cout << "Ошибка открытия файла: " // Закомментировано
+        //           << filePath.toStdString() << std::endl;
         return QString();
     }
 
@@ -181,6 +183,7 @@ QString calculateSHA256(const QString &filePath)
 void calculateAndPrintHashes(const QList<FileInfo> &files,
                              const QString &stage)
 {
+    /* // Закомментировано: убираем вывод хэшей
     std::cout << "=== ВЫЧИСЛЕНИЕ SHA-256 ХЭШЕЙ "
               << stage.toStdString()
               << " ==="
@@ -209,4 +212,5 @@ void calculateAndPrintHashes(const QList<FileInfo> &files,
 
         std::cout << std::endl;
     }
+    */
 }
