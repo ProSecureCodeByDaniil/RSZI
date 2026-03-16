@@ -20,19 +20,10 @@ void collectFilesInfo(const QString &path,
                       QList<FileInfo> &files,
                       int depth = 0);
 
-/**
- * @brief Поиск папки по имени
- * @param folderName Имя искомой папки
- * @param startPath Начальный путь для поиска
- * @return Полный путь к найденной папке или пустая строка
- *
- * Алгоритм:
- * 1. Поднимается вверх до 5 уровней, проверяя наличие папки
- * 2. Ищет в текущей директории
- * 3. Ищет во вложенных папках текущей директории
- */
+/* // Закомментировано: объявление функции поиска папки больше не используется
 QString findFolder(const QString &folderName,
                    const QString &startPath);
+*/
 
 /**
  * @brief Вычисление SHA-256 хэша файла
