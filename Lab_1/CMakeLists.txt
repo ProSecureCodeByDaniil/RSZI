@@ -21,6 +21,13 @@ set(SOURCES
     CryptoManager.cpp
     FileUtils.cpp
     Logger.cpp
+    #1_example_basicQt.cpp
+    #2_example_basicClass.cpp
+    #3_example_SingletonPattern.cpp
+    #4_example_RecursiveTraversal.cpp
+    #5_example_SimpleLogger.cpp
+    #6_example_SimpleEncryptor.cpp
+    #7_example_OpenSSLEncryptor.cpp
 )
 
 set(HEADERS
