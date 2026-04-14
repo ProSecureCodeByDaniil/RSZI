@@ -3,7 +3,6 @@
 
 #include <QFile>
 #include <QFileInfo>
-// #include <iostream> // Закомментировано: убираем лишний вывод
 #include <vector>
 #include <cstring>
 
@@ -72,7 +71,6 @@ bool CryptoManager::deriveKeyFromPassword(const QString& password)
 {
     if (password.isEmpty())
     {
-        // std::cout << "Ошибка: Пароль не может быть пустым" << std::endl; // Закомментировано: данный вывод больше не нужен
         return false;
     }
 
@@ -276,9 +274,6 @@ bool CryptoManager::encryptFile(const QString& inputPath,
 
     if (!keyInitialized)
     {
-        // std::cout << "Ошибка: CryptoManager не инициализирован" // Закомментировано: данный вывод больше не нужен
-        //           << std::endl;
-
         if (logger) {
             logger->logError("CryptoManager не инициализирован", fileName);
         }
@@ -288,9 +283,6 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     // ========== ПРОВЕРКА: Является ли файл системным/защищенным? ==========
     if (isProtectedSystemFile(inputPath))
     {
-        // std::cout << "Файл защищен системой и не может быть изменен: " // Закомментировано
-        //           << fileName.toStdString() << std::endl;
-
         // Записываем в соответствующий лог (encrypt лог) с указанием операции
         if (logger) {
             logger->logSkipped("Файл является системным или защищенным", fileName, LogOperation::Encrypt);
@@ -303,10 +295,6 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     // Если файл уже зашифрован, ничего не делаем
     if (isFileEncryptedInternal(inputPath))
     {
-        // std::cout << "Файл уже зашифрован: "                       // Закомментировано: данный вывод больше не нужен
-        //           << QFileInfo(inputPath).fileName().toStdString()
-        //           << std::endl;
-
         if (logger) {
             logger->logSkipped("Файл уже зашифрован", fileName, LogOperation::Encrypt);
         }
@@ -450,7 +438,6 @@ bool CryptoManager::encryptFile(const QString& inputPath,
         QFile::remove(inputPath);          // Удаляем исходный файл
         QFile::rename(tempPath, inputPath); // Переименовываем временный
         outputPath = inputPath;
-        // std::cout << "Файл успешно зашифрован" << std::endl; // Закомментировано: данный вывод больше не нужен
 
         // Логируем успешное шифрование файла
         if (logger) {
@@ -460,7 +447,7 @@ bool CryptoManager::encryptFile(const QString& inputPath,
     else
     {
         QFile::remove(tempPath);  // Ошибка - удаляем временный файл
-        // std::cout << "Ошибка при шифровании" << std::endl; // Закомментировано: данный вывод больше не нужен
+
         if (logger) {
             logger->logError("Ошибка при шифровании файла", fileName);
         }
@@ -499,9 +486,6 @@ bool CryptoManager::decryptFile(const QString& inputPath,
     // ========== ПРОВЕРКА: Является ли файл системным/защищенным? ==========
     if (isProtectedSystemFile(inputPath))
     {
-        // std::cout << "Файл защищен системой и не может быть изменен: " // Закомментировано
-        //           << fileName.toStdString() << std::endl;
-
         // Записываем в соответствующий лог (decrypt лог) с указанием операции
         if (logger) {
             logger->logSkipped("Файл является системным или защищенным", fileName, LogOperation::Decrypt);
@@ -654,7 +638,6 @@ bool CryptoManager::decryptFile(const QString& inputPath,
         QFile::remove(inputPath);           // Удаляем зашифрованный файл
         QFile::rename(tempPath, inputPath);  // Переименовываем временный
         outputPath = inputPath;
-        // std::cout << "Файл успешно расшифрован" << std::endl; // Закомментировано: данный вывод больше не нужен
 
         // Логируем успешное дешифрование файла
         if (logger) {
@@ -664,7 +647,6 @@ bool CryptoManager::decryptFile(const QString& inputPath,
     else
     {
         QFile::remove(tempPath);  // Ошибка - удаляем временный файл
-        // std::cout << "Ошибка при дешифровании" << std::endl; // Закомментировано: данный вывод больше не нужен
 
         if (logger) {
             logger->logError("Ошибка при дешифровании файла", fileName);

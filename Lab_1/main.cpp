@@ -32,20 +32,6 @@ int main(int argc, char *argv[])
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
-    /* // Закомментировано: старый код с поиском папки
-    // Получаем путь к директории, где находится исполняемый файл
-    QString currentPath =
-        QFileInfo(QCoreApplication::applicationFilePath()).absolutePath();
-
-    std::cout << "Текущая директория: "
-              << currentPath.toStdString() << std::endl << std::endl;
-
-    // Ввод имени папки для поиска
-    std::string folderName;
-    std::cout << "Введите название папки для поиска: ";
-    std::getline(std::cin, folderName);
-    */
-
     // Ввод пути к папке для обработки
     std::string folderPathInput;
     std::cout << "Введите полный путь к папке для обработки: ";
@@ -60,12 +46,6 @@ int main(int argc, char *argv[])
     std::string mode;
     std::cout << "Выберите режим (1 - шифрование, 2 - дешифрование): ";
     std::getline(std::cin, mode);
-
-    /* // Закомментировано: старый код с поиском папки
-    // Поиск указанной папки
-    QString folderPath =
-        findFolder(QString::fromStdString(folderName), currentPath);
-    */
 
     // Проверка существования указанной папки
     QString folderPath = QString::fromStdString(folderPathInput);
@@ -85,8 +65,6 @@ int main(int argc, char *argv[])
         Logger::destroyInstance();
         return 1;
     }
-
-    // std::cout << "Папка найдена: " << folderPath.toStdString() << std::endl; // Закомментировано
 
     // Инициализация логгера
     QString appPath = QFileInfo(QCoreApplication::applicationFilePath()).absolutePath();
@@ -136,9 +114,6 @@ int main(int argc, char *argv[])
     if (mode == "1") {
         operation = "шифрования";
         std::cout << "Начинаю шифрование файлов..." << std::endl;
-
-        // Режим шифрования
-        // calculateAndPrintHashes(files, "ДО ШИФРОВАНИЯ"); // Закомментировано
 
         for (auto &file : files) {
             QString outputPath;
@@ -213,9 +188,6 @@ int main(int argc, char *argv[])
                 errorCount++;
             }
         }
-
-        // После дешифрования вычисляем хэши для проверки целостности
-        // calculateAndPrintHashes(files, "ПОСЛЕ ДЕШИФРОВАНИЯ"); // Закомментировано
 
         std::cout << "Дешифрование завершено." << std::endl;
 

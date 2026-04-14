@@ -20,28 +20,4 @@ void collectFilesInfo(const QString &path,
                       QList<FileInfo> &files,
                       int depth = 0);
 
-/* // Закомментировано: объявление функции поиска папки больше не используется
-QString findFolder(const QString &folderName,
-                   const QString &startPath);
-*/
-
-/**
- * @brief Вычисление SHA-256 хэша файла
- * @param filePath Путь к файлу
- * @return Хэш в виде hex-строки или пустая строка при ошибке
- *
- * Использует QCryptographicHash с буфером 8 КБ для экономии памяти.
- */
-QString calculateSHA256(const QString &filePath);
-
-/**
- * @brief Вычисление и вывод хэшей для списка файлов
- * @param files Список файлов
- * @param stage Описание этапа (например "ДО ШИФРОВАНИЯ")
- *
- * Для каждого файла вычисляет SHA-256 и выводит в консоль.
- */
-void calculateAndPrintHashes(const QList<FileInfo> &files,
-                             const QString &stage);
-
 #endif // FILEUTILS_H
