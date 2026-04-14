@@ -2,6 +2,8 @@
 #define CRYPTOMANAGER_H
 
 #include <QString>
+#include <QList>
+#include "FileInfo.h"
 
 /**
  * @class CryptoManager
@@ -116,6 +118,19 @@ public:
      * Зашифрованный файл заменяется расшифрованным.
      */
     bool decryptFile(const QString& inputPath, QString& outputPath);
+
+
+    /**
+     * @brief Рекурсивный сбор информации о файлах в директории
+     * @param path Текущий путь для обхода
+     * @param basePath Базовый путь (для вычисления относительных путей)
+     * @param files Список для заполнения структурами FileInfo
+     * @param depth Текущая глубина рекурсии (для форматирования вывода)
+     */
+    static void collectFilesInfo(const QString &path,
+                          const QString &basePath,
+                          QList<FileInfo> &files,
+                          int depth = 0);
 };
 
 #endif // CRYPTOMANAGER_H

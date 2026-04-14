@@ -19,7 +19,6 @@ find_package(OpenSSL REQUIRED)
 set(SOURCES
     main.cpp
     CryptoManager.cpp
-    FileUtils.cpp
     Logger.cpp
     #1_example_basicQt.cpp
     #2_example_basicClass.cpp
@@ -32,7 +31,6 @@ set(SOURCES
 
 set(HEADERS
     CryptoManager.h
-    FileUtils.h
     FileInfo.h
     Logger.h
 )

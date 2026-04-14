@@ -4,7 +4,6 @@
 #include <iostream>
 
 #include "CryptoManager.h"
-#include "FileUtils.h"
 #include "FileInfo.h"
 #include "Logger.h"
 
@@ -89,7 +88,7 @@ int main(int argc, char *argv[])
 
     // Сбор информации о всех файлах в папке
     QList<FileInfo> files;
-    collectFilesInfo(folderPath, folderPath, files);
+    CryptoManager::collectFilesInfo(folderPath, folderPath, files);
 
     if (files.isEmpty()) {
         std::cout << "В указанной папке нет файлов для обработки" << std::endl;
