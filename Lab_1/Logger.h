@@ -1,3 +1,14 @@
+/**
+ * @file Logger.h
+ * @brief Модуль логирования (синглтон)
+ *
+ * Пишет в 4 файла:
+ * - logs_encrypt.txt   (успешное шифрование и пропуски при шифровании)
+ * - logs_decrypt.txt   (успешное дешифрование и пропуски при дешифровании)
+ * - logs_errors.txt    (все ошибки)
+ * - logs_info.txt      (общая информация и статистика)
+ */
+
 #ifndef LOGGER_H
 #define LOGGER_H
 
@@ -9,109 +20,87 @@
 
 /**
  * @enum LogOperation
- * @brief Тип операции для логирования
+ * @brief Для различения операции при логировании пропущенных файлов
  */
 enum class LogOperation {
     Encrypt,    ///< Операция шифрования
     Decrypt,    ///< Операция дешифрования
-    Unknown     ///< Неизвестная операция (для обратной совместимости)
+    Unknown     ///< Неизвестно (не пишется)
 };
 
 /**
  * @class Logger
- * @brief Класс для логирования операций шифрования/дешифрования в файлы
- *
- * Создает файлы logs_encrypt.txt и logs_decrypt.txt рядом с исполняемым файлом
- * и записывает в них информацию о выполненных операциях.
+ * @brief Синглтон для потокобезопасной записи в файлы логов
  */
 class Logger {
 private:
-    static Logger* instance;    ///< Указатель на единственный экземпляр (синглтон)
-    static QMutex mutex;        ///< Мьютекс для потокобезопасности
+    static Logger* instance;
+    static QMutex mutex;
 
-    QString logDir;             ///< Директория для лог-файлов
-    QFile encryptLogFile;       ///< Файл для логов шифрования
-    QFile decryptLogFile;       ///< Файл для логов дешифрования
-    QFile errorLogFile;         ///< Файл для логов ошибок
-    QFile infoLogFile;          ///< Файл для информационных логов
+    QString logDir;
+    QFile encryptLogFile;
+    QFile decryptLogFile;
+    QFile errorLogFile;
+    QFile infoLogFile;
 
-    /**
-     * @brief Приватный конструктор (синглтон)
-     * @param appDirPath Путь к директории приложения
-     */
     explicit Logger(const QString& appDirPath);
-
-    /**
-     * @brief Приватный деструктор
-     */
     ~Logger();
 
-    /**
-     * @brief Вспомогательный метод для записи с UTF-8
-     * @param file Ссылка на файл для записи
-     * @param message Сообщение для записи
-     */
     void writeToFile(QFile& file, const QString& message);
 
 public:
-    // Запрет копирования и присваивания
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
     /**
-     * @brief Инициализация логгера (должна быть вызвана перед использованием)
-     * @param appDirPath Путь к директории приложения
+     * @brief Инициализация (вызвать один раз в main)
+     * @param appDirPath Путь к папке приложения (куда класть логи)
      */
     static void initialize(const QString& appDirPath);
 
     /**
-     * @brief Получение экземпляра логгера
-     * @return Указатель на единственный экземпляр Logger
+     * @brief Получить экземпляр
+     * @return указатель на Logger
      */
     static Logger* getInstance();
 
     /**
-     * @brief Уничтожение экземпляра логгера
+     * @brief Уничтожить экземпляр (при завершении)
      */
     static void destroyInstance();
 
     /**
-     * @brief Запись в лог шифрования
-     * @param message Сообщение для записи
+     * @brief Записать успешное шифрование
+     * @param message текст
      */
     void logEncrypt(const QString& message);
 
     /**
-     * @brief Запись в лог дешифрования
-     * @param message Сообщение для записи
+     * @brief Записать успешное дешифрование
+     * @param message текст
      */
     void logDecrypt(const QString& message);
 
     /**
-     * @brief Запись ошибки в лог
-     * @param message Сообщение об ошибке
-     * @param fileName Имя файла, в котором произошла ошибка (опционально)
+     * @brief Записать ошибку
+     * @param message текст
+     * @param fileName имя файла (опционально)
      */
     void logError(const QString& message, const QString& fileName = QString());
 
     /**
-     * @brief Запись информационного сообщения
-     * @param message Информационное сообщение
+     * @brief Записать информационное сообщение
+     * @param message текст
      */
     void logInfo(const QString& message);
 
     /**
-     * @brief Запись информации о пропущенном файле (уже зашифрован/дешифрован)
-     * @param message Информационное сообщение
-     * @param fileName Имя файла
-     * @param operation Тип операции (шифрование/дешифрование)
+     * @brief Записать пропуск файла (уже зашифрован или не зашифрован)
+     * @param message причина
+     * @param fileName имя файла
+     * @param operation тип операции
      */
     void logSkipped(const QString& message, const QString& fileName, LogOperation operation = LogOperation::Unknown);
-
-    /**
-     * @brief Сообщение о том, что лог-файлы обновлены (выводится в консоль один раз)
-     */
-    void notifyLogsUpdated();
 };
 
 #endif // LOGGER_H
