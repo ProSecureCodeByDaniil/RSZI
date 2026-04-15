@@ -31,7 +31,6 @@ set(SOURCES
 
 set(HEADERS
     CryptoManager.h
-    FileInfo.h
     Logger.h
 )
 
