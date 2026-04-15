@@ -1,234 +1,118 @@
+/**
+ * @file main.cpp
+ * @brief Точка входа в консольное приложение
+ *
+ * Запрашивает у пользователя:
+ * - путь к папке
+ * - пароль
+ * - режим (1 - шифрование, 2 - дешифрование)
+ *
+ * Инициализирует логгер и криптоменеджер, запускает обработку.
+ * Пароль затирается из памяти после использования.
+ */
+
 #include <QCoreApplication>
 #include <QFileInfo>
-#include <windows.h>
 #include <iostream>
+#include <string>
+#include <cstring>
 
 #include "CryptoManager.h"
-#include "FileInfo.h"
 #include "Logger.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /**
- * @brief Главная функция программы
- *
- * Программа для шифрования/дешифрования всех файлов в указанной папке
- * с использованием AES-256-CBC. Пароль используется для генерации ключа.
- *
- * Этапы работы:
- * 1. Установка UTF-8 кодировки для консоли Windows
- * 2. Запрос пути к папке, пароля и режима работы
- * 3. Проверка существования папки
- * 4. Инициализация CryptoManager паролем
- * 5. Сбор информации о файлах
- * 6. В зависимости от режима:
- *    - Режим 1 (шифрование): шифрование файлов
- *    - Режим 2 (дешифрование): дешифрование файлов
+ * @brief Безопасно очищает строку с паролем (защита от оптимизации)
+ * @param str строка, которую нужно затереть
+ */
+void secureStringClear(std::string& str)
+{
+    if (str.empty())
+        return;
+
+    // Затираем через volatile, чтобы компилятор не выкинул код
+    volatile char* pwdPtr = &str[0];
+    for (size_t i = 0; i < str.size(); ++i) {
+        pwdPtr[i] = 0;
+    }
+
+    // Дополнительная очистка внутреннего буфера
+    str.assign(str.size(), '\0');
+    str.clear();
+    str.shrink_to_fit();
+}
+
+/**
+ * @brief Главная функция
+ * @param argc количество аргументов
+ * @param argv массив аргументов (не используются)
+ * @return 0 при успехе, 1 при ошибке
  */
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    // Настройка консоли для корректного отображения UTF-8 (русские буквы)
+// На Windows — UTF-8 в консоли, чтобы русские буквы не ломались
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
+#endif
 
-    // Ввод пути к папке для обработки
+    // ----- Ввод данных от пользователя -----
     std::string folderPathInput;
     std::cout << "Введите полный путь к папке для обработки: ";
     std::getline(std::cin, folderPathInput);
 
-    // Ввод пароля (будет использован для генерации ключа)
     std::string password;
     std::cout << "Введите пароль: ";
     std::getline(std::cin, password);
 
-    // Выбор режима: 1 - шифрование, 2 - дешифрование
-    std::string mode;
+    std::string modeInput;
     std::cout << "Выберите режим (1 - шифрование, 2 - дешифрование): ";
-    std::getline(std::cin, mode);
+    std::getline(std::cin, modeInput);
 
-    // Проверка существования указанной папки
-    QString folderPath = QString::fromStdString(folderPathInput);
-    QFileInfo folderInfo(folderPath);
-
-    if (!folderInfo.exists() || !folderInfo.isDir()) {
-        std::cout << "[ОШИБКА] Указанная папка не существует или не является директорией" << std::endl;
-
-        // Пытаемся инициализировать логгер для записи ошибки
-        QString appPath = QFileInfo(QCoreApplication::applicationFilePath()).absolutePath();
-        Logger::initialize(appPath);
-        Logger* logger = Logger::getInstance();
-        if (logger) {
-            logger->logError("Указанная папка не существует или не является директорией: " + folderPath);
-            logger->notifyLogsUpdated();
-        }
-        Logger::destroyInstance();
+    OperationMode mode;
+    if (modeInput == "1") {
+        mode = OperationMode::Encrypt;
+    } else if (modeInput == "2") {
+        mode = OperationMode::Decrypt;
+    } else {
+        std::cout << "[ОШИБКА] Неверный режим работы. Используйте 1 или 2" << std::endl;
         return 1;
     }
 
-    // Инициализация логгера
+    // ----- Инициализация логгера (куда писать логи) -----
     QString appPath = QFileInfo(QCoreApplication::applicationFilePath()).absolutePath();
     Logger::initialize(appPath);
-    Logger* logger = Logger::getInstance();
 
-    // Инициализация крипто-менеджера паролем
+    // ----- Инициализация криптоменеджера -----
     CryptoManager* crypto = CryptoManager::getInstance();
+
     if (!crypto->initialize(QString::fromStdString(password))) {
         std::cout << "[ОШИБКА] Ошибка инициализации крипто-менеджера" << std::endl;
+        Logger* logger = Logger::getInstance();
         if (logger) {
             logger->logError("Ошибка инициализации крипто-менеджера");
-            logger->notifyLogsUpdated();
         }
+
+        secureStringClear(password);
         CryptoManager::destroyInstance();
         Logger::destroyInstance();
         return 1;
     }
 
-    // Затираем пароль в памяти после использования
-    password.assign(password.size(), '0');
+    // Пароль больше не нужен — затираем
+    secureStringClear(password);
 
-    // Сбор информации о всех файлах в папке
-    QList<FileInfo> files;
-    CryptoManager::collectFilesInfo(folderPath, folderPath, files);
+    // ----- Запуск обработки -----
+    bool success = crypto->processFolder(QString::fromStdString(folderPathInput), mode);
 
-    if (files.isEmpty()) {
-        std::cout << "В указанной папке нет файлов для обработки" << std::endl;
-        if (logger) {
-            logger->logInfo("В указанной папке нет файлов для обработки: " + folderPath);
-            logger->notifyLogsUpdated();
-        }
-        CryptoManager::destroyInstance();
-        Logger::destroyInstance();
-        return 0;
-    }
-
-    std::cout << "Найдено файлов для обработки: " << files.size() << std::endl;
-
-    int successCount = 0;
-    int skippedCount = 0;
-    int errorCount = 0;
-    int protectedCount = 0;  // Добавляем счетчик для системных/защищенных файлов
-    QString operation;
-
-    // Выполнение операции в зависимости от режима
-    if (mode == "1") {
-        operation = "шифрования";
-        std::cout << "Начинаю шифрование файлов..." << std::endl;
-
-        for (auto &file : files) {
-            QString outputPath;
-
-            // Проверяем, является ли файл системным/защищенным ДО операции
-            if (CryptoManager::isProtectedSystemFile(file.path)) {
-                // Системный/защищенный файл - увеличиваем счетчик пропущенных
-                protectedCount++;
-                skippedCount++;  // Увеличиваем общий счетчик пропущенных
-
-                // Все равно вызываем encryptFile для логирования
-                crypto->encryptFile(file.path, outputPath);
-                continue;
-            }
-
-            // Проверяем статус ДО операции
-            bool wasEncrypted = CryptoManager::isFileEncrypted(file.path);
-            bool result = crypto->encryptFile(file.path, outputPath);
-
-            if (result) {
-                if (wasEncrypted) {
-                    // Файл уже был зашифрован до операции
-                    skippedCount++;
-                } else {
-                    // Файл был успешно зашифрован сейчас
-                    successCount++;
-                }
-            } else {
-                errorCount++;
-            }
-        }
-
-        std::cout << "Шифрование завершено." << std::endl;
-
-        // Уведомляем об обновлении лог-файлов
-        if (logger) {
-            logger->notifyLogsUpdated();
-        }
-    }
-    else if (mode == "2") {
-        operation = "дешифрования";
-        std::cout << "Начинаю дешифрование файлов..." << std::endl;
-
-        // Режим дешифрования
-        for (auto &file : files) {
-            QString outputPath;
-
-            // Проверяем, является ли файл системным/защищенным ДО операции
-            if (CryptoManager::isProtectedSystemFile(file.path)) {
-                // Системный/защищенный файл - увеличиваем счетчик пропущенных
-                protectedCount++;
-                skippedCount++;  // Увеличиваем общий счетчик пропущенных
-
-                // Все равно вызываем decryptFile для логирования
-                crypto->decryptFile(file.path, outputPath);
-                continue;
-            }
-
-            // Проверяем статус ДО операции
-            bool wasEncrypted = CryptoManager::isFileEncrypted(file.path);
-            bool result = crypto->decryptFile(file.path, outputPath);
-
-            if (result) {
-                if (!wasEncrypted) {
-                    // Файл уже был расшифрован до операции
-                    skippedCount++;
-                } else {
-                    // Файл был успешно расшифрован сейчас
-                    successCount++;
-                }
-            } else {
-                errorCount++;
-            }
-        }
-
-        std::cout << "Дешифрование завершено." << std::endl;
-
-        // Уведомляем об обновлении лог-файлов
-        if (logger) {
-            logger->notifyLogsUpdated();
-        }
-    }
-    else {
-        std::cout << "[ОШИБКА] Неверный режим работы. Используйте 1 для шифрования или 2 для дешифрования" << std::endl;
-        if (logger) {
-            logger->logError("Неверный режим работы: " + QString::fromStdString(mode));
-        }
-        errorCount++;
-    }
-
-    // Вывод статистики в консоль с детализацией
-    std::cout << "Статистика: обработано " << (successCount + skippedCount + errorCount)
-              << " файлов (успешно: " << successCount
-              << ", пропущено: " << skippedCount
-              << " [из них системных/защищенных: " << protectedCount << "]"
-              << ", ошибок: " << errorCount << ")" << std::endl;
-
-    // Записываем итоговую статистику в информационный лог (только если была выбрана корректная операция)
-    if (logger && (mode == "1" || mode == "2")) {
-        QString summary;
-        if (protectedCount > 0) {
-            summary = QString("Итого по операции %1: Успешно: %2, Пропущено: %3 (системных/защищенных: %4), Ошибок: %5")
-                          .arg(operation).arg(successCount).arg(skippedCount).arg(protectedCount).arg(errorCount);
-        } else {
-            summary = QString("Итого по операции %1: Успешно: %2, Пропущено: %3, Ошибок: %4")
-                          .arg(operation).arg(successCount).arg(skippedCount).arg(errorCount);
-        }
-        logger->logInfo(summary);
-
-        // Уведомляем об обновлении лог-файлов
-        logger->notifyLogsUpdated();
-    }
-
-    // Очистка ресурсов
+    // ----- Очистка перед выходом -----
     CryptoManager::destroyInstance();
     Logger::destroyInstance();
 
-    return (errorCount > 0) ? 1 : 0;
+    return success ? 0 : 1;
 }
