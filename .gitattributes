@@ -1,5 +1,0 @@
-# Git attributes for protected files 
- 
-# Protected file - DO NOT MODIFY 
-TestFiles\ProSecureCodeByDaniil.ini -diff -merge -text -crlf -eol 
-TestFiles\ProSecureCodeByDaniil.ini linguist-generated=true 
